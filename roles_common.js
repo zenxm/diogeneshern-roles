@@ -128,7 +128,7 @@
     /**
      * Retrieve set of especific role
      *
-     * @method getAllRoles
+     * @method getRole
      * @return {Cursor} cursor of existing roles
      */
     getRole: function (itemId) {
@@ -272,12 +272,10 @@
      *                         whether group is specified or not.
      * @return {Boolean} true if user is in _any_ of the target roles
      */
-    userIsInRole: function (user, roles, group) {
+    userIsInRole: function (user, roles) {
       var id,
-        userRoles,
         query,
-        groupQuery,
-        found = false
+        found;
 
       // ensure array to simplify code
       if (!_.isArray(roles)) {
@@ -285,36 +283,8 @@
       }
 
       if (!user) return false
-      if (group) {
-        if ('string' !== typeof group) return false
-        if ('$' === group[0]) return false
-
-        // convert any periods to underscores
-        group = group.replace(/\./g, '_')
-      }
 
       if ('object' === typeof user) {
-        userRoles = user.roles
-        if (_.isArray(userRoles)) {
-          return _.some(roles, function (role) {
-            return _.contains(userRoles, role)
-          })
-        } else if (userRoles && 'object' === typeof userRoles) {
-          // roles field is dictionary of groups
-          found = _.isArray(userRoles[group]) && _.some(roles, function (role) {
-            return _.contains(userRoles[group], role)
-          })
-          if (!found) {
-            // not found in regular group or group not specified.
-            // check Roles.GLOBAL_GROUP, if it exists
-            found = _.isArray(userRoles[Roles.GLOBAL_GROUP]) && _.some(roles, function (role) {
-              return _.contains(userRoles[Roles.GLOBAL_GROUP], role)
-            })
-          }
-          return found
-        }
-
-        // missing roles field, try going direct via id
         id = user._id
       } else if ('string' === typeof user) {
         id = user
@@ -322,37 +292,12 @@
 
       if (!id) return false
 
-
       query = {_id: id, $or: []}
 
-      // always check Roles.GLOBAL_GROUP
-      groupQuery = {}
-      groupQuery['roles.' + Roles.GLOBAL_GROUP] = {$in: roles}
-      query.$or.push(groupQuery)
-
-      if (group) {
-        // structure of query, when group specified including Roles.GLOBAL_GROUP
-        //   {_id: id,
-        //    $or: [
-        //      {'roles.group1':{$in: ['admin']}},
-        //      {'roles.__global_roles__':{$in: ['admin']}}
-        //    ]}
-        groupQuery = {}
-        groupQuery['roles.' + group] = {$in: roles}
-        query.$or.push(groupQuery)
-      } else {
-        // structure of query, where group not specified. includes
-        // Roles.GLOBAL_GROUP
-        //   {_id: id,
-        //    $or: [
-        //      {roles: {$in: ['admin']}},
-        //      {'roles.__global_roles__': {$in: ['admin']}}
-        //    ]}
-        query.$or.push({roles: {$in: roles}})
-      }
+      query.$or.push({roles: {$in: roles}})
 
       found = Meteor.users.findOne(query, {fields: {_id: 1}})
-      return found ? true : false
+      return found
     },
 
     /**
@@ -471,7 +416,6 @@
 
       return update
     },  // end _update_$addToSet_fn
-
 
     /**
      * Internal function that uses the Template pattern to adds or sets roles
