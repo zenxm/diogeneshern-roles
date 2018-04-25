@@ -98,18 +98,21 @@
      * @method deleteRole
      * @param {String} role Name of role
      */
-    deleteRole: function (id) {
-      if (!id) return
+    deleteRole: function (name) {
+      if (!name) return
 
       let foundExistingUser = Meteor.users.findOne(
-        {Roles: {$in: [id]}},
+        {roles: {$in: [name]}},
         {fields: {_id: 1}});
 
       if (foundExistingUser) {
         throw new Meteor.Error(403, 'Role in use')
       }
 
-      Meteor.roles.remove({_id: id})
+      var thisRole = Meteor.roles.findOne({name: role})
+      if (thisRole) {
+        Meteor.roles.remove({_id: thisRole._id})
+      }
     },
 
     /**
